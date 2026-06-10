@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resources — The Gospel and AI</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #1a1a1a; }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #e5e7eb; }
+  .nav-brand { font-weight: 600; font-size: 16px; letter-spacing: 1px; text-decoration: none; color: #1a1a1a; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; color: #6b7280; align-items: center; }
+  .nav-links a { color: #6b7280; text-decoration: none; }
+  .nav-cta { background: #1E3A5F; color: white; padding: 8px 18px; border-radius: 8px; font-weight: 500; font-size: 14px; text-decoration: none; }
+
+  .header { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding: 56px 40px; text-align: center; }
+  .header h1 { font-size: 36px; font-weight: 600; color: white; margin-bottom: 12px; }
+  .header p { font-size: 16px; color: #CBD5E1; max-width: 560px; margin: 0 auto; line-height: 1.6; }
+
+  .toolbar { padding: 28px 40px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .search { flex: 1; min-width: 220px; padding: 11px 16px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; outline: none; }
+  .search:focus { border-color: #3B82F6; }
+  .filter { padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 20px; font-size: 13px; background: #fff; cursor: pointer; color: #6b7280; }
+  .filter.active { background: #1E3A5F; color: #fff; border-color: #1E3A5F; }
+
+  .grid { padding: 24px 40px 64px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .rcard { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: box-shadow .15s, transform .15s; }
+  .rcard:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.07); transform: translateY(-2px); }
+  .rcard .rtype { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #9ca3af; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .rcard h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; line-height: 1.35; }
+  .rcard p { font-size: 13px; color: #6b7280; line-height: 1.55; flex: 1; }
+  .rcard .rtags { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .rtag { font-size: 11px; color: #534AB7; background: #EEEDFE; padding: 2px 9px; border-radius: 5px; }
+
+  .empty { padding: 64px 40px; text-align: center; color: #9ca3af; }
+  .footer { padding: 28px 40px; text-align: center; font-size: 13px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
+
+  @media (max-width: 640px) {
+    .nav-links { display: none; }
+    .header { padding: 40px 24px; }
+    .toolbar, .grid { padding-left: 24px; padding-right: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="nav">
+    <a href="/" class="nav-brand">THE GOSPEL AND AI</a>
+    <div class="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#chapters">Chapters</a>
+      <a href="/resources.html">Resources</a>
+      <a href="/#groups">Small groups</a>
+      <a href="#" class="nav-cta">Get the book</a>
+    </div>
+  </div>
+
+  <div class="header">
+    <h1>Resource Library</h1>
+    <p>Videos, articles, and talks to help you think Christianly about AI. Have a question? Ask the companion on the <a href="/#companion" style="color:#93C5FD;">home page</a> and it will point you here.</p>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" class="search" type="search" placeholder="Search resources…" />
+    <div id="filters"></div>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none;">No resources yet. Check back soon.</div>
+
+  <div class="footer">
+    thegospelandai.com &middot; Foundation Stone Advisors &middot; &copy; 2026 Eric Jaffe
+  </div>
+
+</div>
+
+<script>
+  const TYPE_ICONS = { video: 'ti-brand-youtube', article: 'ti-article', pdf: 'ti-file-text', sermon: 'ti-microphone' };
+  let all = [];
+  let activeTag = null;
+
+  async function load() {
+    try {
+      const res = await fetch('/api/resources');
+      const data = await res.json();
+      all = data.resources || [];
+    } catch { all = []; }
+    renderFilters();
+    render();
+  }
+
+  function renderFilters() {
+    const tags = [...new Set(all.flatMap(r => r.tags || []))].sort();
+    const el = document.getElementById('filters');
+    el.innerHTML = '';
+    const mk = (label, tag) => {
+      const b = document.createElement('button');
+      b.className = 'filter' + (activeTag === tag ? ' active' : '');
+      b.textContent = label;
+      b.onclick = () => { activeTag = tag; renderFilters(); render(); };
+      return b;
+    };
+    el.appendChild(mk('All', null));
+    tags.forEach(t => el.appendChild(mk(t, t)));
+  }
+
+  function render() {
+    const q = document.getElementById('search').value.toLowerCase().trim();
+    const grid = document.getElementById('grid');
+    const items = all.filter(r => {
+      if (activeTag && !(r.tags || []).includes(activeTag)) return false;
+      if (q) {
+        const hay = (r.title + ' ' + (r.description || '') + ' ' + (r.tags || []).join(' ')).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    document.getElementById('empty').style.display = items.length ? 'none' : 'block';
+    grid.innerHTML = items.map(r => `
+      <a class="rcard" href="${r.url}" target="_blank" rel="noopener">
+        <div class="rtype"><i class="ti ${TYPE_ICONS[r.type] || 'ti-link'}"></i>${r.type || 'link'}</div>
+        <h3>${escapeHtml(r.title)}</h3>
+        <p>${escapeHtml(r.description || (r.author ? 'By ' + r.author : ''))}</p>
+        <div class="rtags">${(r.tags || []).map(t => `<span class="rtag">${escapeHtml(t)}</span>`).join('')}</div>
+      </a>`).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.getElementById('search').addEventListener('input', render);
+  load();
+</script>
+</body>
+</html>

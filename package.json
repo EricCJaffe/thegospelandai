@@ -1,0 +1,16 @@
+{
+  "name": "gospelandai",
+  "version": "1.0.0",
+  "description": "The Gospel and AI — landing page + AI resource library",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "ingest": "node scripts/ingest.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "openai": "^4.67.0",
+    "youtube-transcript": "^1.2.1"
+  }
+}

@@ -14,6 +14,7 @@
   .nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #e5e7eb; }
   .nav-brand { font-weight: 600; font-size: 16px; letter-spacing: 1px; }
   .nav-links { display: flex; gap: 24px; font-size: 14px; color: #6b7280; align-items: center; }
+  .nav-links a:not(.nav-cta) { color: #6b7280; text-decoration: none; }
   .nav-cta { background: #1E3A5F; color: white; padding: 8px 18px; border-radius: 8px; font-weight: 500; font-size: 14px; text-decoration: none; }
 
   /* HERO */
@@ -67,6 +68,22 @@
   .terminal-msg { background: #1E293B; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
   .terminal-msg .sender { font-size: 13px; margin-bottom: 4px; }
   .terminal-msg .text { font-size: 14px; color: #E2E8F0; line-height: 1.6; }
+  .terminal-msg .text p { margin-bottom: 8px; }
+  .terminal-msg .text p:last-child { margin-bottom: 0; }
+
+  /* CHAT (live companion) */
+  .chat-resources { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-res { display: block; background: #0B1220; border: 1px solid #1E293B; border-radius: 8px; padding: 10px 14px; text-decoration: none; }
+  .chat-res:hover { border-color: #3B82F6; }
+  .chat-res .crt { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #64748B; display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+  .chat-res .crttl { font-size: 13px; color: #93C5FD; font-weight: 500; }
+  .chat-res .crwhy { font-size: 12px; color: #94A3B8; margin-top: 2px; line-height: 1.45; }
+  .chat-form { display: flex; gap: 10px; margin-top: 16px; }
+  .chat-form input { flex: 1; background: #1E293B; border: 1px solid #334155; color: #E2E8F0; border-radius: 10px; padding: 12px 16px; font-size: 14px; outline: none; }
+  .chat-form input:focus { border-color: #3B82F6; }
+  .chat-form button { background: #3B82F6; color: #fff; border: none; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .chat-form button:disabled { opacity: 0.5; cursor: default; }
+  .chat-hint { font-size: 12px; color: #64748B; margin-top: 10px; }
 
   /* ENDORSEMENT */
   .endorsement { text-align: center; padding: 56px 40px; border-bottom: 1px solid #e5e7eb; }
@@ -102,7 +119,7 @@
   <div class="nav">
     <span class="nav-brand">THE GOSPEL AND AI</span>
     <div class="nav-links">
-      <span>About</span><span>Chapters</span><span>Resources</span><span>Small groups</span>
+      <span>About</span><span>Chapters</span><a href="/resources.html">Resources</a><span>Small groups</span>
       <a href="#" class="nav-cta">Get the book</a>
     </div>
   </div>
@@ -147,7 +164,7 @@
   </div>
 
   <!-- CHAPTERS -->
-  <div class="section">
+  <div class="section" id="chapters">
     <p class="section-label">Inside the book</p>
     <p class="section-title">10 chapters. Scripture to action.</p>
     <div>
@@ -165,7 +182,7 @@
   </div>
 
   <!-- AUTHOR -->
-  <div class="section">
+  <div class="section" id="about">
     <p class="section-label">About the author</p>
     <div class="author-section">
       <div class="author-avatar">EJ</div>
@@ -178,28 +195,110 @@
   </div>
 
   <!-- AI COMPANION -->
-  <div class="section">
+  <div class="section" id="companion">
     <p class="section-label">AI-native experience</p>
     <p class="section-title">This book talks back.</p>
-    <p class="section-desc">Install the free Claude Skill and ask the book your questions. How does AI affect my job? What does the Bible say about consciousness? How do I protect my kids from screens? Get answers grounded in Scripture, not generic AI commentary.</p>
+    <p class="section-desc">Ask a question — about your job, your kids, consciousness, money, faith. You'll get an answer grounded in Scripture, plus the most relevant videos and articles from our resource library. Try it.</p>
     <div class="terminal">
       <div class="terminal-header">
         <div class="terminal-dot"></div>
         <span class="terminal-label">anchored-in-the-storm</span>
       </div>
-      <div class="terminal-msg">
-        <p class="sender" style="color: #94A3B8;">You:</p>
-        <p class="text">Should I be worried about AI taking my job?</p>
+      <div id="chat-log">
+        <div class="terminal-msg">
+          <p class="sender" style="color: #94A3B8;">You:</p>
+          <p class="text">Should I be worried about AI taking my job?</p>
+        </div>
+        <div class="terminal-msg">
+          <p class="sender" style="color: #7C3AED;">Anchored:</p>
+          <p class="text">Your identity is not your job title. Job loss cannot erase it. Automation cannot obsolete it. AI cannot outperform it — your worth was settled at the cross, not at your desk. That said, wisdom means preparing. Ask me about the practical economic shifts and where to start.</p>
+        </div>
       </div>
-      <div class="terminal-msg">
-        <p class="sender" style="color: #7C3AED;">Anchored:</p>
-        <p class="text">Here is what I know: your identity is not your job title. Chapter 1 lays this out. "Job loss cannot erase it. Automation cannot obsolete it. AI cannot outperform it." Your worth was settled at the cross, not at your desk. That said, wisdom means preparing. Chapter 5 walks through the practical economic shifts and what to do about them. Start there.</p>
-      </div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" type="text" placeholder="Ask Anchored a question…" />
+        <button type="submit" id="chat-send">Ask</button>
+      </form>
+      <p class="chat-hint">Grounded in Scripture and a curated resource library. Answers may point you to videos and articles.</p>
     </div>
   </div>
 
+  <script>
+    (function () {
+      const form = document.getElementById('chat-form');
+      const input = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('chat-send');
+      const log = document.getElementById('chat-log');
+      const history = [];
+      const TYPE_ICONS = { video: 'ti-brand-youtube', article: 'ti-article', pdf: 'ti-file-text', sermon: 'ti-microphone' };
+
+      function esc(s) {
+        return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+      }
+
+      function addUser(text) {
+        const el = document.createElement('div');
+        el.className = 'terminal-msg';
+        el.innerHTML = '<p class="sender" style="color:#94A3B8;">You:</p><p class="text">' + esc(text) + '</p>';
+        log.appendChild(el);
+        return el;
+      }
+
+      function addBot() {
+        const el = document.createElement('div');
+        el.className = 'terminal-msg';
+        el.innerHTML = '<p class="sender" style="color:#7C3AED;">Anchored:</p><p class="text"><span class="dots">…</span></p>';
+        log.appendChild(el);
+        return el;
+      }
+
+      function renderAnswer(el, answer, resources) {
+        const paras = String(answer || '').split(/\n\n+/).map(p => '<p>' + esc(p) + '</p>').join('');
+        let html = '<p class="sender" style="color:#7C3AED;">Anchored:</p><div class="text">' + paras + '</div>';
+        if (resources && resources.length) {
+          html += '<div class="chat-resources">' + resources.map(r =>
+            '<a class="chat-res" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
+              '<span class="crt"><i class="ti ' + (TYPE_ICONS[r.type] || 'ti-link') + '"></i>' + esc(r.type || 'link') + '</span>' +
+              '<span class="crttl">' + esc(r.title) + '</span>' +
+              (r.reason ? '<span class="crwhy">' + esc(r.reason) + '</span>' : '') +
+            '</a>'
+          ).join('') + '</div>';
+        }
+        el.innerHTML = html;
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const question = input.value.trim();
+        if (!question) return;
+        input.value = '';
+        sendBtn.disabled = true;
+        addUser(question);
+        const botEl = addBot();
+
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, history }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Request failed');
+          renderAnswer(botEl, data.answer, data.resources);
+          history.push({ role: 'user', content: question });
+          history.push({ role: 'assistant', content: data.answer || '' });
+        } catch (err) {
+          botEl.querySelector('.text').textContent =
+            'Sorry — something went wrong reaching the companion. Please try again.';
+        } finally {
+          sendBtn.disabled = false;
+          input.focus();
+        }
+      });
+    })();
+  </script>
+
   <!-- SMALL GROUPS -->
-  <div class="section">
+  <div class="section" id="groups">
     <p class="section-label">For churches and small groups</p>
     <p class="section-title">Bring your whole church through it.</p>
     <p class="section-desc">10-week leader guide and participant workbook. Sermon series outline included. Everything a pastor needs to equip their congregation for the AI age.</p>
