@@ -121,7 +121,7 @@
     });
     document.getElementById('empty').style.display = items.length ? 'none' : 'block';
     grid.innerHTML = items.map(r => `
-      <a class="rcard" href="${r.url}" target="_blank" rel="noopener">
+      <a class="rcard" href="${escapeHtml(safeUrl(r.url))}" target="_blank" rel="noopener">
         <div class="rtype"><i class="ti ${TYPE_ICONS[r.type] || 'ti-link'}"></i>${r.type || 'link'}</div>
         <h3>${escapeHtml(r.title)}</h3>
         <p>${escapeHtml(r.description || (r.author ? 'By ' + r.author : ''))}</p>
@@ -131,6 +131,10 @@
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function safeUrl(u) {
+    try { const p = new URL(u, location.origin); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '#'; }
+    catch (e) { return '#'; }
   }
 
   document.getElementById('search').addEventListener('input', render);

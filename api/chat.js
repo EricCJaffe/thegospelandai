@@ -5,6 +5,7 @@
 // ask the model to answer in the "Anchored" voice and pick relevant resources.
 import { supabase } from '../lib/supabase.js';
 import { openai, embed, CHAT_MODEL } from '../lib/openai.js';
+import { checkRateLimit, clientIp } from '../lib/ratelimit.js';
 
 const SYSTEM_PROMPT = `You are "Anchored", the AI companion for the book "Anchored in the Storm: A Christian Guide to Thriving in the Age of AI" by Eric Jaffe.
 
@@ -35,6 +36,18 @@ export default async function handler(req, res) {
     const { question, history = [] } = req.body || {};
     if (!question || typeof question !== 'string') {
       return res.status(400).json({ error: 'Missing "question".' });
+    }
+    if (question.length > 1000) {
+      return res.status(400).json({ error: 'Question is too long.' });
+    }
+
+    // 0. Rate limit by IP (fail-open if Upstash isn't configured).
+    const { success, retryAfter } = await checkRateLimit(clientIp(req));
+    if (!success) {
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: "You've asked a lot of questions in a short time. Please wait a moment and try again.",
+      });
     }
 
     // 1. Semantic search.

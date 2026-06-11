@@ -8,7 +8,9 @@ Landing page + AI resource library for *Anchored in the Storm* — a Christian g
 
 - **Static landing page** (`index.html`) with a **live AI companion** — ask a question and get a Scripture-grounded answer plus the most relevant resources.
 - **Resource library** (`resources.html`) — a browsable, searchable catalog of videos, articles, and talks.
+- **Embeddable widget** (`widget.js` + `embed.html`) — a one-line `<script>` that drops the chat onto any third-party site, isolated in a shadow DOM.
 - **Semantic search backend** — questions are matched against video transcripts and article text by meaning (RAG), powered by OpenAI embeddings + Supabase pgvector, with answers from OpenAI chat.
+- **Rate limiting** — `/api/chat` is IP-rate-limited via Upstash Redis (fail-open if not configured).
 
 ## Architecture
 
@@ -40,6 +42,18 @@ Copy `.env.example` to `.env` and fill in:
 - `CHAT_MODEL` (optional, default `gpt-4o`)
 
 Add the same three variables in the Vercel dashboard (Project → Settings → Environment Variables) for production.
+
+**Rate limiting (recommended):** provision Upstash Redis via the Vercel Marketplace (Project → Integrations → Upstash). It auto-injects `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` into all environments. Until then, `/api/chat` runs without rate limiting (fail-open). Current limits: 12 requests/min and 250/day per IP (see `lib/ratelimit.js`).
+
+## Embeddable widget
+
+Any site can embed the chat with one line:
+
+```html
+<script src="https://thegospelandai.vercel.app/widget.js" async></script>
+```
+
+Optional `data-` attributes: `data-title`, `data-accent`, `data-position` (`right`/`left`), `data-greeting`. See `/embed.html` for the full guide and a live preview. The widget calls `/api/chat` cross-origin (CORS is open) and renders in a shadow DOM so it can't collide with host-page CSS.
 
 ### 2. Database
 

@@ -251,12 +251,17 @@
         return el;
       }
 
+      function safeUrl(u) {
+        try { const p = new URL(u, location.origin); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '#'; }
+        catch (e) { return '#'; }
+      }
+
       function renderAnswer(el, answer, resources) {
         const paras = String(answer || '').split(/\n\n+/).map(p => '<p>' + esc(p) + '</p>').join('');
         let html = '<p class="sender" style="color:#7C3AED;">Anchored:</p><div class="text">' + paras + '</div>';
         if (resources && resources.length) {
           html += '<div class="chat-resources">' + resources.map(r =>
-            '<a class="chat-res" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
+            '<a class="chat-res" href="' + esc(safeUrl(r.url)) + '" target="_blank" rel="noopener">' +
               '<span class="crt"><i class="ti ' + (TYPE_ICONS[r.type] || 'ti-link') + '"></i>' + esc(r.type || 'link') + '</span>' +
               '<span class="crttl">' + esc(r.title) + '</span>' +
               (r.reason ? '<span class="crwhy">' + esc(r.reason) + '</span>' : '') +
