@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "ingest": "node scripts/ingest.js",
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

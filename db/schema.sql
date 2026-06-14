@@ -80,3 +80,55 @@ $$;
 --    public row access.
 alter table public.resources enable row level security;
 alter table public.chunks    enable row level security;
+
+-- 6. Subscribers: email capture for newsletter / launch list.
+create table if not exists public.subscribers (
+  id         bigint generated always as identity primary key,
+  email      text unique not null,
+  source     text,                                    -- e.g. 'landing_page', 'chat_widget'
+  created_at timestamptz not null default now()
+);
+
+-- 7. Chat logs: every question/answer pair for analytics and fine-tuning.
+create table if not exists public.chat_logs (
+  id             bigint generated always as identity primary key,
+  question       text,
+  answer         text,
+  resource_urls  text[],                              -- urls of sources surfaced in the answer
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists chat_logs_created_at_idx
+  on public.chat_logs (created_at desc);
+
+-- 8. Feedback: thumbs-up / thumbs-down on individual answers.
+create table if not exists public.feedback (
+  id             bigint generated always as identity primary key,
+  question       text,
+  answer         text,
+  rating         text not null check (rating in ('up', 'down')),
+  resource_urls  text[],
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists feedback_created_at_idx
+  on public.feedback (created_at desc);
+
+-- 9. Answer cache: keyed by a normalised question hash so repeated questions
+--    skip the embedding + LLM round trip.
+create table if not exists public.answer_cache (
+  id            bigint generated always as identity primary key,
+  question_key  text unique not null,                 -- normalised / hashed lookup key
+  question      text,
+  answer        text,
+  resources     jsonb,                                -- serialised resource metadata
+  created_at    timestamptz not null default now()
+);
+
+-- Row Level Security for sections 6-9. Same rationale as sections 2-3 above:
+-- all access is server-side via the service-role key (bypasses RLS). No
+-- policies means a leaked anon key still grants zero row access.
+alter table public.subscribers  enable row level security;
+alter table public.chat_logs    enable row level security;
+alter table public.feedback     enable row level security;
+alter table public.answer_cache enable row level security;

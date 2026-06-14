@@ -24,7 +24,7 @@
   var cfg = {
     accent: script.getAttribute('data-accent') || '#3B82F6',
     position: script.getAttribute('data-position') === 'left' ? 'left' : 'right',
-    greeting: script.getAttribute('data-greeting') || 'Ask a question about AI and faith — I’ll answer and point you to helpful resources.',
+    greeting: script.getAttribute('data-greeting') || "Ask a question about AI and faith — I’ll answer and point you to helpful resources.",
     title: script.getAttribute('data-title') || 'Anchored',
   };
 
@@ -83,6 +83,11 @@
     '.ft{font-size:11px;color:#475569;text-align:center;padding:0 0 10px}',
     '.dots{display:inline-block}.dots:after{content:"…";animation:d 1.2s steps(4,end) infinite}',
     '@keyframes d{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}',
+    '.fb{display:flex;align-items:center;gap:6px;margin-top:8px}',
+    '.fb button{background:none;border:1px solid #334155;color:#94A3B8;border-radius:6px;padding:3px 8px;font-size:13px;cursor:pointer;line-height:1.4;transition:border-color .15s,color .15s}',
+    '.fb button:hover{border-color:' + cfg.accent + ';color:#fff}',
+    '.fb button:disabled{opacity:.4;cursor:default}',
+    '.fb .thanks{font-size:12px;color:#64748B}',
   ].join('\n');
   root.appendChild(style);
 
@@ -132,26 +137,90 @@
   function addBot(answer, resources) {
     var el = document.createElement('div');
     el.className = 'msg a';
-    render(el, answer, resources);
+    renderAnswer(el, answer);
+    renderResources(el, resources);
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return el;
   }
 
-  function render(el, answer, resources) {
-    var html = String(answer || '').split(/\n\n+/).map(function (p) {
+  // Render (or update) just the answer text paragraphs inside a bot message el.
+  // Uses a dedicated child div with class "ans" so resources are not disturbed.
+  function renderAnswer(el, answer) {
+    var ansDiv = el.querySelector('.ans');
+    if (!ansDiv) {
+      ansDiv = document.createElement('div');
+      ansDiv.className = 'ans';
+      el.insertBefore(ansDiv, el.firstChild);
+    }
+    ansDiv.innerHTML = String(answer || '').split(/\n\n+/).map(function (p) {
       return '<p>' + esc(p) + '</p>';
     }).join('');
-    if (resources && resources.length) {
-      html += resources.map(function (r) {
-        return '<a class="res" href="' + esc(safeUrl(r.url)) + '" target="_blank" rel="noopener">' +
-          '<div class="rt">' + (TYPE_ICONS[r.type] || '🔗') + ' ' + esc(r.type || 'link') + '</div>' +
-          '<div class="rl">' + esc(r.title) + '</div>' +
-          (r.reason ? '<div class="rw">' + esc(r.reason) + '</div>' : '') +
-          '</a>';
-      }).join('');
+  }
+
+  // Render (or replace) resource cards inside a bot message el.
+  // Uses a dedicated child div with class "res-wrap".
+  function renderResources(el, resources) {
+    var resDiv = el.querySelector('.res-wrap');
+    if (!resDiv) {
+      resDiv = document.createElement('div');
+      resDiv.className = 'res-wrap';
+      el.appendChild(resDiv);
     }
-    el.innerHTML = html;
+    if (!resources || !resources.length) {
+      resDiv.innerHTML = '';
+      return;
+    }
+    resDiv.innerHTML = resources.map(function (r) {
+      return '<a class="res" href="' + esc(safeUrl(r.url)) + '" target="_blank" rel="noopener">' +
+        '<div class="rt">' + (TYPE_ICONS[r.type] || '🔗') + ' ' + esc(r.type || 'link') + '</div>' +
+        '<div class="rl">' + esc(r.title) + '</div>' +
+        (r.reason ? '<div class="rw">' + esc(r.reason) + '</div>' : '') +
+        '</a>';
+    }).join('');
+  }
+
+  // Legacy render() kept for the greeting call (answer + resources at once).
+  function render(el, answer, resources) {
+    renderAnswer(el, answer);
+    renderResources(el, resources);
+  }
+
+  // Add thumbs up/down feedback buttons under a completed bot message.
+  function addFeedback(botEl, question, finalAnswer, resourceUrls) {
+    var fbDiv = document.createElement('div');
+    fbDiv.className = 'fb';
+
+    var upBtn = document.createElement('button');
+    upBtn.textContent = '👍';
+    upBtn.setAttribute('aria-label', 'Helpful');
+
+    var dnBtn = document.createElement('button');
+    dnBtn.textContent = '👎';
+    dnBtn.setAttribute('aria-label', 'Not helpful');
+
+    function sendFeedback(rating) {
+      upBtn.disabled = true;
+      dnBtn.disabled = true;
+      fetch(API_BASE + '/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: question,
+          answer: finalAnswer,
+          rating: rating,
+          resourceUrls: resourceUrls,
+        }),
+      }).catch(function () { /* silently ignore feedback errors */ });
+      fbDiv.innerHTML = '<span class="thanks">Thanks!</span>';
+    }
+
+    upBtn.addEventListener('click', function () { sendFeedback('up'); });
+    dnBtn.addEventListener('click', function () { sendFeedback('down'); });
+
+    fbDiv.appendChild(upBtn);
+    fbDiv.appendChild(dnBtn);
+    botEl.appendChild(fbDiv);
   }
 
   form.addEventListener('submit', function (e) {
@@ -161,24 +230,92 @@
     input.value = '';
     sendBtn.disabled = true;
     addUser(q);
-    var botEl = addBot('<span class="dots"></span>', []);
-    botEl.innerHTML = '<span class="dots"></span>';
+
+    // Start bot message with typing indicator in the answer slot.
+    var botEl = document.createElement('div');
+    botEl.className = 'msg a';
+    var ansDiv = document.createElement('div');
+    ansDiv.className = 'ans';
+    ansDiv.innerHTML = '<span class="dots"></span>';
+    botEl.appendChild(ansDiv);
+    var resDiv = document.createElement('div');
+    resDiv.className = 'res-wrap';
+    botEl.appendChild(resDiv);
+    log.appendChild(botEl);
+    log.scrollTop = log.scrollHeight;
+
+    var accumulatedAnswer = '';
+    var firstDelta = true;
+    var renderedResources = [];
 
     fetch(API_BASE + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: q, history: history }),
     })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok) throw new Error(res.d.error || 'Request failed');
-        render(botEl, res.d.answer, res.d.resources);
-        log.scrollTop = log.scrollHeight;
+      .then(function (response) {
+        if (!response.ok) {
+          // Non-2xx: body is JSON {error}
+          return response.json().then(function (d) {
+            throw new Error(d.error || 'Request failed');
+          });
+        }
+
+        // Streaming NDJSON: read body with a reader + TextDecoder.
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder('utf-8');
+        var buf = '';
+        var done = false;
+
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) { done = true; return; }
+            buf += decoder.decode(chunk.value, { stream: true });
+            var lines = buf.split('\n');
+            // Keep the last (possibly incomplete) segment in the buffer.
+            buf = lines.pop();
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i].trim();
+              if (!line) continue;
+              var msg;
+              try { msg = JSON.parse(line); } catch (ex) { continue; }
+              if (msg.type === 'delta') {
+                if (firstDelta) {
+                  // Replace the dots indicator with real content.
+                  accumulatedAnswer = '';
+                  firstDelta = false;
+                }
+                accumulatedAnswer += msg.content;
+                renderAnswer(botEl, accumulatedAnswer);
+                log.scrollTop = log.scrollHeight;
+              } else if (msg.type === 'meta') {
+                renderedResources = msg.resources || [];
+                renderResources(botEl, renderedResources);
+                log.scrollTop = log.scrollHeight;
+              } else if (msg.type === 'error') {
+                ansDiv.textContent = msg.error || 'Sorry — something went wrong.';
+              } else if (msg.type === 'done') {
+                done = true;
+              }
+            }
+            if (!done) return pump();
+          });
+        }
+
+        return pump();
+      })
+      .then(function () {
+        // Stream finished — update history and add feedback buttons.
         history.push({ role: 'user', content: q });
-        history.push({ role: 'assistant', content: res.d.answer || '' });
+        history.push({ role: 'assistant', content: accumulatedAnswer });
+        var resourceUrls = renderedResources.map(function (r) { return r.url || ''; });
+        addFeedback(botEl, q, accumulatedAnswer, resourceUrls);
       })
       .catch(function (err) {
-        botEl.textContent = (err && err.message) || 'Sorry — something went wrong. Please try again.';
+        var ansEl = botEl.querySelector('.ans');
+        if (ansEl) {
+          ansEl.textContent = (err && err.message) || 'Sorry — something went wrong. Please try again.';
+        }
       })
       .finally(function () { sendBtn.disabled = false; input.focus(); });
   });
