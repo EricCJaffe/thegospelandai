@@ -100,10 +100,13 @@ limit.
 
 ## Known gaps, worth fixing before trusting them
 
-- **The Supabase project has never been checked with `get_advisors`.** On
-  another project here that check found nineteen tables world-readable and
-  world-writable. Run it against `qlxpasbmzltfnyjxemnm` and read the result
-  before assuming the access rules are sound.
+- **`get_advisors` was run 2026-10-06: clean.** All six `public` tables
+  (`answer_cache`, `chat_logs`, `chunks`, `feedback`, `resources`,
+  `subscribers`) have RLS on and no policies, i.e. deny-all to `anon` and
+  `authenticated`. That is correct here: no browser code talks to Supabase;
+  everything goes through `api/` with the service-role key, which bypasses
+  RLS. **If a page ever queries Supabase directly, it needs a policy first.**
+  Performance: two unused `created_at` indexes (harmless at this size).
 - **No CI.** The tests are good and nothing runs them automatically, so run
   `npm test` locally before pushing — which, on this repo, means before
   publishing.
