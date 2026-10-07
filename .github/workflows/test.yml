@@ -1,0 +1,18 @@
+# Runs the Node test suite on every PR and on main. main deploys straight to
+# thegospelandai.com, so this is the only gate between a commit and production.
+name: test
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test

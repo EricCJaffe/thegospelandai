@@ -107,6 +107,6 @@ limit.
   everything goes through `api/` with the service-role key, which bypasses
   RLS. **If a page ever queries Supabase directly, it needs a policy first.**
   Performance: two unused `created_at` indexes (harmless at this size).
-- **No CI.** The tests are good and nothing runs them automatically, so run
-  `npm test` locally before pushing — which, on this repo, means before
-  publishing.
+- **CI added 2026-10-07**: `.github/workflows/test.yml` runs `npm test` on
+  every PR and on `main`. It does not block Vercel — a push to `main` still
+  deploys even if the run fails — so merge only through a green PR.
