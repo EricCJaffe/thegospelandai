@@ -15,7 +15,8 @@
 // stream a plain-text answer in the "Anchored" voice -> a small second call
 // picks the most relevant resources. First-turn answers are cached.
 import { supabase } from '../lib/supabase.js';
-import { openai, embed, CHAT_MODEL } from '../lib/openai.js';
+import { embed, CHAT_MODEL } from '../lib/openai.js';
+import { chatCompletion, getAnthropic, claudeModel } from '../lib/claude.js';
 import { checkRateLimit, clientIp } from '../lib/ratelimit.js';
 import { normalizeKey, getCached, setCached } from '../lib/cache.js';
 import { logChat } from '../lib/chatlog.js';
@@ -136,16 +137,23 @@ export default async function handler(req, res) {
       ...history.slice(-6),
       { role: 'user', content: `Question: ${question}\n\nCONTEXT:\n${context}` },
     ];
-    const stream = await openai.chat.completions.create({
-      model: CHAT_MODEL,
-      messages: answerMessages,
-      temperature: 0.5,
-      stream: true,
+    // Claude (was OpenAI until 2026-10-30). System prompt goes in `system`;
+    // only user/assistant turns are messages.
+    const stream = getAnthropic().messages.stream({
+      model: claudeModel(CHAT_MODEL),
+      max_tokens: 4096,
+      system: ANSWER_SYSTEM_PROMPT,
+      messages: answerMessages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role, content: String(m.content ?? '') })),
     });
 
     let answer = '';
-    for await (const part of stream) {
-      const token = part.choices?.[0]?.delta?.content;
+    for await (const event of stream) {
+      const token =
+        event.type === 'content_block_delta' && event.delta.type === 'text_delta'
+          ? event.delta.text
+          : '';
       if (token) {
         answer += token;
         writeLine(res, { type: 'delta', content: token });
@@ -157,7 +165,7 @@ export default async function handler(req, res) {
     const candidates = [...byUrl.values()].map((r) => ({ title: r.title, url: r.url }));
     if (candidates.length > 0) {
       try {
-        const pickCompletion = await openai.chat.completions.create({
+        const pickCompletion = await chatCompletion({
           model: CHAT_MODEL,
           temperature: 0.3,
           response_format: { type: 'json_object' },
