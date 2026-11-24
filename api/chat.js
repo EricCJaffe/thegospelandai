@@ -3,7 +3,8 @@
 // STREAMING endpoint. On success responds with Content-Type
 // 'application/x-ndjson' and streams newline-delimited JSON objects:
 //   {"type":"delta","content": "<chunk of answer text>"}   (zero or more, in order)
-//   {"type":"meta","resources": [{title,url,type,reason}]}  (exactly once)
+//   {"type":"meta","resources": [{title,url,type,reason}],
+//            "verses": [{ref,osis,url}]}                      (exactly once)
 //   {"type":"done"}                                         (final line)
 // If something fails AFTER headers are sent:
 //   {"type":"error","error": "<msg>"} then end.
@@ -14,12 +15,18 @@
 // Flow: embed the question -> semantic search over transcript chunks ->
 // stream a plain-text answer in the "Anchored" voice -> a small second call
 // picks the most relevant resources. First-turn answers are cached.
+//
+// Verse checks: the answer is released a paragraph at a time, and only after
+// every chapter:verse reference in it has been checked against real Bible
+// versification (lib/verses.js). A reference that does not exist is flagged
+// inline before the reader sees it.
 import { supabase } from '../lib/supabase.js';
 import { embed, CHAT_MODEL } from '../lib/openai.js';
 import { chatCompletion, getAnthropic, claudeModel } from '../lib/claude.js';
 import { checkRateLimit, clientIp } from '../lib/ratelimit.js';
 import { normalizeKey, getCached, setCached } from '../lib/cache.js';
 import { logChat } from '../lib/chatlog.js';
+import { checkVerses, createVerseGate } from '../lib/verses.js';
 
 // Plain-text answer voice (the answer is streamed as text, not JSON).
 const ANSWER_SYSTEM_PROMPT = `You are "Anchored", the AI companion for the book "Anchored in the Storm: A Christian Guide to Thriving in the Age of AI" by Eric Jaffe.
@@ -27,6 +34,8 @@ const ANSWER_SYSTEM_PROMPT = `You are "Anchored", the AI companion for the book 
 Voice: warm, grounded, pastoral, and direct. Anchor answers in Scripture and the hope of the Gospel, not generic AI commentary. Be concise — a few short paragraphs at most.
 
 You are given excerpts retrieved from a curated resource library (video transcripts and articles) in a CONTEXT section. Use them to inform your answer when relevant. If the context does not contain anything relevant, still answer the question helpfully from a Christian worldview.
+
+When you cite Scripture, write the reference as Book Chapter:Verse (for example, John 3:16), and cite only verses you are certain exist.
 
 Respond with a plain-text answer only — no JSON, no markdown headers, no resource list. Just the answer prose. Relevant resources are selected separately, so do not list links or recommendations yourself.`;
 
@@ -90,13 +99,14 @@ export default async function handler(req, res) {
         res.status(200);
         res.setHeader('Content-Type', 'application/x-ndjson');
         streaming = true;
-        if (cached.answer) writeLine(res, { type: 'delta', content: cached.answer });
-        writeLine(res, { type: 'meta', resources: cached.resources });
+        const checked = checkVerses(cached.answer);
+        if (checked.text) writeLine(res, { type: 'delta', content: checked.text });
+        writeLine(res, { type: 'meta', resources: cached.resources, verses: checked.verses });
         writeLine(res, { type: 'done' });
         res.end();
         logChat({
           question,
-          answer: cached.answer,
+          answer: checked.text,
           resourceUrls: cached.resources.map((r) => r.url).filter(Boolean),
         });
         return;
@@ -148,17 +158,16 @@ export default async function handler(req, res) {
         .map((m) => ({ role: m.role, content: String(m.content ?? '') })),
     });
 
-    let answer = '';
+    const gate = createVerseGate((content) => writeLine(res, { type: 'delta', content }));
     for await (const event of stream) {
       const token =
         event.type === 'content_block_delta' && event.delta.type === 'text_delta'
           ? event.delta.text
           : '';
-      if (token) {
-        answer += token;
-        writeLine(res, { type: 'delta', content: token });
-      }
+      if (token) gate.push(token);
     }
+    const { text: answer, verses, invalid } = gate.end();
+    if (invalid.length) console.warn('verse check flagged:', invalid.join('; '));
 
     // 5. RESOURCE-SELECTION call (non-streamed JSON over the candidate list).
     let resources = [];
@@ -204,7 +213,7 @@ export default async function handler(req, res) {
     }
 
     // 6. Emit meta + done.
-    writeLine(res, { type: 'meta', resources });
+    writeLine(res, { type: 'meta', resources, verses });
     writeLine(res, { type: 'done' });
     res.end();
 
