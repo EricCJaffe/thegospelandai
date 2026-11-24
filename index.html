@@ -103,6 +103,7 @@
   .chat-feedback button:hover:not(:disabled) { border-color: #3B82F6; color: #E2E8F0; }
   .chat-feedback button:disabled { opacity: 0.5; cursor: default; }
   .chat-feedback .fb-thanks { font-size: 12px; color: #64748B; }
+  .chat-feedback .fb-share { font-size: 13px; }
 
   /* ENDORSEMENT */
   .endorsement { text-align: center; padding: 56px 40px; border-bottom: 1px solid #e5e7eb; }
@@ -350,6 +351,28 @@
         down.addEventListener('click', function () { send('down'); });
       }
 
+      // Share link beneath a completed answer (token comes from the meta line).
+      function addShare(el, token) {
+        // Own row, so rating an answer (which rewrites the feedback row) keeps it.
+        if (!token) return;
+        const fb = document.createElement('div');
+        fb.className = 'chat-feedback';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'fb-share';
+        btn.textContent = 'Share';
+        btn.addEventListener('click', async function () {
+          const url = location.origin + '/share.html?s=' + encodeURIComponent(token);
+          try {
+            if (navigator.share) { await navigator.share({ title: 'An answer from Anchored', url }); return; }
+            await navigator.clipboard.writeText(url);
+            btn.textContent = 'Link copied';
+          } catch (e) { /* user cancelled or clipboard blocked */ }
+        });
+        fb.appendChild(btn);
+        el.appendChild(fb);
+      }
+
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
         const question = input.value.trim();
@@ -361,6 +384,7 @@
 
         let answer = '';
         let resources = [];
+        let share = null;
         let started = false;
 
         try {
@@ -394,6 +418,7 @@
               renderText(botEl, answer);
             } else if (obj.type === 'meta') {
               resources = obj.resources || [];
+              share = obj.share || null;
               renderResources(botEl, resources);
             } else if (obj.type === 'error') {
               errored = true;
@@ -427,6 +452,7 @@
 
           const resourceUrls = resources.map(function (r) { return safeUrl(r.url); });
           addFeedback(botEl, question, answer, resourceUrls);
+          addShare(botEl, share);
         } catch (err) {
           const t = botEl.querySelector('.text');
           if (t) t.textContent = 'Sorry — something went wrong reaching the companion. Please try again.';
