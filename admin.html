@@ -161,6 +161,15 @@
 
     <h2>Library <span class="muted" id="count"></span></h2>
     <div id="tableWrap"></div>
+
+    <h2>Weekly emails <span class="muted">draft sequence &middot; preview only, nothing sends</span></h2>
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <ol id="emailList" style="flex:0 0 300px;padding-left:20px;line-height:1.8;font-size:14px;"></ol>
+      <div style="flex:1 1 420px;min-width:300px;">
+        <div class="muted" id="emailMeta" style="font-size:13px;margin-bottom:8px;">Pick a week to preview.</div>
+        <iframe id="emailFrame" title="Email preview" sandbox="" style="width:100%;height:640px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;"></iframe>
+      </div>
+    </div>
   </div>
 
   <div class="footer" style="padding:28px 40px;text-align:center;font-size:13px;color:#9ca3af;border-top:1px solid #e5e7eb;">
@@ -233,6 +242,7 @@
     try {
       await loadResources();   // validates the password as a side effect
       showApp();
+      loadEmails().catch(() => {});
     } catch (e) {
       if (e.status === 503) {
         showGate(e.message); // not configured — surface the real reason
@@ -256,6 +266,23 @@
     document.getElementById('gatePw').value = '';
     showGate();
   });
+
+  // ---- weekly emails (preview only) ----
+  async function loadEmails() {
+    const { emails } = await api('/api/admin/emails');
+    const list = document.getElementById('emailList');
+    list.innerHTML = emails.map(e =>
+      '<li><a href="#" data-week="' + esc(e.week) + '">' + esc(e.subject) + '</a></li>').join('');
+    list.querySelectorAll('a').forEach(a => a.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      try {
+        const e = await api('/api/admin/emails?week=' + encodeURIComponent(a.dataset.week));
+        document.getElementById('emailMeta').textContent =
+          'Week ' + e.week + ' · ' + e.chapter + ' · Preheader: ' + e.preheader;
+        document.getElementById('emailFrame').srcdoc = e.html;
+      } catch (err) { toast(err.message, 'err'); }
+    }));
+  }
 
   // ---- resource list ----
   let resources = [];
