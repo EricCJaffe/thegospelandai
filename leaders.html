@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Small-group leader guide — Anchored in the Storm</title>
+<meta name="description" content="A free ten-session small-group guide for Anchored in the Storm: Scripture, discussion questions and a weekly practice for every chapter.">
+<meta property="og:title" content="Small-group leader guide — Anchored in the Storm">
+<meta property="og:description" content="Ten sessions, one per chapter: Scripture, discussion questions and a weekly practice.">
+<meta property="og:image" content="https://thegospelandai.com/og-image.png">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #1a1a1a; }
+  a { color: #1E3A5F; }
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #e5e7eb; }
+  .nav-brand { font-weight: 600; font-size: 16px; letter-spacing: 1px; color: #1a1a1a; text-decoration: none; }
+  .hero { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color: #fff; padding: 48px 32px; text-align: center; }
+  .hero h1 { font-size: 34px; font-weight: 600; margin-bottom: 10px; }
+  .hero p { color: #CBD5E1; max-width: 620px; margin: 0 auto; line-height: 1.6; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+  h2 { font-size: 20px; margin: 28px 0 12px; color: #1E3A5F; }
+  .plan { display: flex; flex-wrap: wrap; gap: 8px; }
+  .plan span { background: #F1F5F9; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 20px; }
+  .tabs button { border: 1px solid #CBD5E1; background: #fff; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: #1E3A5F; color: #fff; border-color: #1E3A5F; }
+  .session { border: 1px solid #e5e7eb; border-radius: 14px; padding: 24px; margin-bottom: 20px; break-inside: avoid; }
+  .session .kicker { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #64748B; }
+  .session h3 { font-size: 22px; margin: 6px 0 16px; }
+  .session h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #1E3A5F; margin: 16px 0 6px; }
+  .session p, .session li { line-height: 1.6; }
+  .session ol { padding-left: 22px; }
+  .refs a { margin-right: 12px; }
+  .leader { background: #EFF6FF; border-left: 4px solid #3B82F6; padding: 10px 14px; border-radius: 6px; margin-top: 16px; font-size: 14px; }
+  .actions { display: flex; gap: 10px; margin-bottom: 16px; }
+  .btn { background: #1E3A5F; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font-size: 14px; cursor: pointer; text-decoration: none; }
+  .btn.alt { background: #fff; color: #1E3A5F; border: 1px solid #1E3A5F; }
+  body.print-all .session { display: block !important; }
+  @media print {
+    .nav, .hero, .tabs, .actions, .no-print { display: none !important; }
+    main { padding: 0; }
+    .session { border: 0; padding: 0 0 24px; page-break-after: always; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<nav class="nav"><a class="nav-brand" href="/">ANCHORED IN THE STORM</a><a href="/#chat-form">Ask Anchored</a></nav>
+<header class="hero">
+  <h1>Small-group leader guide</h1>
+  <p>Ten sessions, one per chapter. Each has Scripture to read aloud, an opening question, discussion questions, a practice for the week and a note for you as the leader.</p>
+</header>
+<main>
+  <section class="no-print">
+    <h2>Each session, in about an hour</h2>
+    <div class="plan" id="plan"></div>
+  </section>
+
+  <h2 class="no-print">Sessions</h2>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="actions">
+    <button class="btn" type="button" id="printOne">Print this session</button>
+    <button class="btn alt" type="button" id="printAll">Print all ten</button>
+  </div>
+  <div id="sessions"></div>
+  <p class="no-print" style="font-size:13px;color:#64748B;margin-top:24px;">Questions come up that the guide does not cover? <a href="/#chat-form">Ask Anchored</a>, the book's Scripture-grounded companion.</p>
+</main>
+<script type="module">
+  import { SESSIONS, SESSION_PLAN } from '/content/small-group-guide.js';
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const verse = (ref) => `<a href="https://www.biblegateway.com/passage/?search=${encodeURIComponent(ref)}" target="_blank" rel="noopener">${esc(ref)}</a>`;
+
+  document.getElementById('plan').innerHTML = SESSION_PLAN.map((p) => `<span>${esc(p.part)} &middot; ${p.minutes} min</span>`).join('');
+
+  document.getElementById('sessions').innerHTML = SESSIONS.map((s) => `
+    <article class="session" id="session-${s.n}" role="tabpanel" hidden>
+      <div class="kicker">Session ${s.n} &middot; ${esc(s.theme)}</div>
+      <h3>${esc(s.chapter)}</h3>
+      <h4>Read aloud</h4><p class="refs">${s.scripture.map(verse).join('')}</p>
+      <h4>Opening question</h4><p>${esc(s.open)}</p>
+      <h4>Discuss</h4><ol>${s.discuss.map((q) => `<li>${esc(q)}</li>`).join('')}</ol>
+      <h4>This week's practice</h4><p>${esc(s.practice)}</p>
+      <div class="leader"><strong>Leader note:</strong> ${esc(s.leader)}</div>
+    </article>`).join('');
+
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = SESSIONS.map((s) => `<button type="button" role="tab" data-n="${s.n}">${s.n}</button>`).join('');
+
+  function show(n) {
+    for (const el of document.querySelectorAll('.session')) el.hidden = el.id !== `session-${n}`;
+    for (const b of tabs.querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.n === String(n)));
+    history.replaceState(null, '', `#session-${n}`);
+  }
+  tabs.addEventListener('click', (e) => { if (e.target.dataset.n) show(e.target.dataset.n); });
+  const fromHash = /^#session-(\d+)$/.exec(location.hash);
+  show(fromHash && SESSIONS.some((s) => String(s.n) === fromHash[1]) ? fromHash[1] : 1);
+
+  document.getElementById('printOne').addEventListener('click', () => window.print());
+  document.getElementById('printAll').addEventListener('click', () => {
+    document.body.classList.add('print-all');
+    window.print();
+    document.body.classList.remove('print-all');
+  });
+</script>
+</body>
+</html>
