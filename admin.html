@@ -161,6 +161,15 @@
 
     <h2>Library <span class="muted" id="count"></span></h2>
     <div id="tableWrap"></div>
+
+    <h2>Insights
+      <select id="insDays" style="margin-left:8px;font-size:14px;">
+        <option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option><option value="365">Last year</option>
+      </select>
+      <span class="muted" style="font-size:12px;">days are UTC</span>
+    </h2>
+    <div id="insights" class="muted">Loading…</div>
   </div>
 
   <div class="footer" style="padding:28px 40px;text-align:center;font-size:13px;color:#9ca3af;border-top:1px solid #e5e7eb;">
@@ -233,6 +242,7 @@
     try {
       await loadResources();   // validates the password as a side effect
       showApp();
+      loadInsights();
     } catch (e) {
       if (e.status === 503) {
         showGate(e.message); // not configured — surface the real reason
@@ -256,6 +266,34 @@
     document.getElementById('gatePw').value = '';
     showGate();
   });
+
+  // ---- insights (read only) ----
+  async function loadInsights() {
+    const box = document.getElementById('insights');
+    box.textContent = 'Loading…';
+    try {
+      const d = await api('/api/admin/insights?days=' + document.getElementById('insDays').value);
+      const t = d.totals;
+      const max = Math.max(1, ...d.perDay.map(x => x.count));
+      const list = (rows, cell) => rows.length
+        ? '<ol style="padding-left:20px;line-height:1.7;">' + rows.map(r => '<li>' + cell(r) + ' <span class="muted">(' + r.count + ')</span></li>').join('') + '</ol>'
+        : '<p class="muted">None yet.</p>';
+      box.innerHTML =
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
+          [['Questions', t.questions], ['Unique', t.unique], ['Helpful', t.helpfulRate == null ? '–' : t.helpfulRate + '%'], ['Ratings', t.up + ' up / ' + t.down + ' down']]
+            .map(([k, v]) => '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;min-width:120px;"><div class="muted" style="font-size:12px;">' + k + '</div><div style="font-size:20px;font-weight:600;color:#1a1a1a;">' + esc(v) + '</div></div>').join('') +
+        '</div>' +
+        '<div title="Questions per day" style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-bottom:16px;">' +
+          d.perDay.map(x => '<div title="' + esc(x.day + ': ' + x.count) + '" style="flex:1;background:#3B82F6;min-height:1px;height:' + Math.round(60 * x.count / max) + 'px;"></div>').join('') +
+        '</div>' +
+        '<div style="color:#1a1a1a;"><h3 style="font-size:15px;margin:12px 0 4px;">Top questions</h3>' + list(d.topQuestions, r => esc(r.question)) +
+        '<h3 style="font-size:15px;margin:12px 0 4px;">Rated not helpful</h3>' + list(d.notHelpful, r => esc(r.question)) +
+        '<h3 style="font-size:15px;margin:12px 0 4px;">Most surfaced resources</h3>' + list(d.topResources, r => '<a href="' + esc(safeUrl(r.url)) + '" target="_blank" rel="noopener">' + esc(r.url) + '</a>') + '</div>';
+    } catch (e) {
+      if (e.message !== 'Unauthorized') box.textContent = 'Could not load insights: ' + e.message;
+    }
+  }
+  document.getElementById('insDays').addEventListener('change', loadInsights);
 
   // ---- resource list ----
   let resources = [];
