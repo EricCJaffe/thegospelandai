@@ -4,7 +4,7 @@
 // 'application/x-ndjson' and streams newline-delimited JSON objects:
 //   {"type":"delta","content": "<chunk of answer text>"}   (zero or more, in order)
 //   {"type":"meta","resources": [{title,url,type,reason}],
-//            "verses": [{ref,osis,url}]}                      (exactly once)
+//            "verses": [{ref,osis,url}], "share": "<token>"|null} (exactly once)
 //   {"type":"done"}                                         (final line)
 // If something fails AFTER headers are sent:
 //   {"type":"error","error": "<msg>"} then end.
@@ -27,6 +27,7 @@ import { checkRateLimit, clientIp } from '../lib/ratelimit.js';
 import { normalizeKey, getCached, setCached } from '../lib/cache.js';
 import { logChat } from '../lib/chatlog.js';
 import { checkVerses, createVerseGate } from '../lib/verses.js';
+import { shareToken } from '../lib/share.js';
 
 // Plain-text answer voice (the answer is streamed as text, not JSON).
 const ANSWER_SYSTEM_PROMPT = `You are "Anchored", the AI companion for the book "Anchored in the Storm: A Christian Guide to Thriving in the Age of AI" by Eric Jaffe.
@@ -101,14 +102,20 @@ export default async function handler(req, res) {
         streaming = true;
         const checked = checkVerses(cached.answer);
         if (checked.text) writeLine(res, { type: 'delta', content: checked.text });
-        writeLine(res, { type: 'meta', resources: cached.resources, verses: checked.verses });
-        writeLine(res, { type: 'done' });
-        res.end();
-        logChat({
+        // Log before meta so the share link can name the row (logChat never throws).
+        const logId = await logChat({
           question,
           answer: checked.text,
           resourceUrls: cached.resources.map((r) => r.url).filter(Boolean),
         });
+        writeLine(res, {
+          type: 'meta',
+          resources: cached.resources,
+          verses: checked.verses,
+          share: shareToken(logId),
+        });
+        writeLine(res, { type: 'done' });
+        res.end();
         return;
       }
     }
@@ -212,18 +219,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6. Emit meta + done.
-    writeLine(res, { type: 'meta', resources, verses });
-    writeLine(res, { type: 'done' });
-    res.end();
-
-    // 7. Cache (first-turn only) + fire-and-forget logging. Do not block end().
-    if (cacheKey) setCached(cacheKey, question, answer, resources);
-    logChat({
+    // 6. Log (its row id backs the share link; logChat never throws), then
+    //    emit meta + done.
+    const logId = await logChat({
       question,
       answer,
       resourceUrls: resources.map((r) => r.url).filter(Boolean),
     });
+    writeLine(res, { type: 'meta', resources, verses, share: shareToken(logId) });
+    writeLine(res, { type: 'done' });
+    res.end();
+
+    // 7. Cache (first-turn only), fire-and-forget. Do not block end().
+    if (cacheKey) setCached(cacheKey, question, answer, resources);
     return;
   } catch (err) {
     console.error('chat error:', err);
